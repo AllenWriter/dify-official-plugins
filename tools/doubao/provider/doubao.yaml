@@ -16,7 +16,7 @@ extra:
   python:
     source: provider/doubao_provider.py
 identity:
-  author: ByteDance
+  author: Mak J AI Limited
   description:
     en_US: Doubao (豆包) API integration for AI image generation by Volcengine/ByteDance.
     zh_CN: 火山引擎/字节跳动提供的豆包 API，用于 AI 图像生成。

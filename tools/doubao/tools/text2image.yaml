@@ -7,7 +7,7 @@ extra:
   python:
     source: tools/text2image.py
 identity:
-  author: Allen Wang
+  author: Allen Writer
   icon: icon.svg
   label:
     en_US: Text to Image

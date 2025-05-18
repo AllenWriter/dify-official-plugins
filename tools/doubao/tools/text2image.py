@@ -36,7 +36,7 @@ class Text2ImageTool(Tool):
         try:
             yield self.create_text_message("正在使用豆包 API 生成图像...")
             
-            # 调用API - 只使用基本参数
+            # 调用API
             response = client.images.generate(
                 model=model,
                 prompt=prompt,

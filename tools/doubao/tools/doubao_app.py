@@ -5,7 +5,7 @@ from openai import OpenAI
 
 class DoubaoApp:
     """
-    Doubao (豆包) API client for text-to-image generation using OpenAI client
+    Doubao API client for text-to-image generation using OpenAI client
     """
     def __init__(
         self, 

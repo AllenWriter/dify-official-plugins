@@ -1,5 +1,6 @@
 import time
 from collections.abc import Generator
+import requests
 from openai import OpenAI
 from dify_plugin.entities.tool import ToolInvokeMessage
 from dify_plugin import Tool
@@ -12,11 +13,9 @@ class Text2VideoTool(Tool):
         """
         Invoke text-to-video generation tool using Doubao AI
         """
-        # 初始化OpenAI客户端
-        client = OpenAI(
-            api_key=self.runtime.credentials.get("api_key"),
-            base_url="https://ark.cn-beijing.volces.com/api/v3",
-        )
+        # 获取API key
+        api_key = self.runtime.credentials.get("api_key")
+        base_url = "https://ark.cn-beijing.volces.com/api/v3"
         
         # 获取参数
         prompt = tool_parameters.get("prompt", "")
@@ -42,22 +41,36 @@ class Text2VideoTool(Tool):
         try:
             yield self.create_text_message("正在使用豆包 API 生成视频...")
             
+            # 设置请求头
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
+            
             # 第一步：创建视频生成任务
-            response = client.post(
-                "/contents/generations/tasks",
-                json={
-                    "model": model,
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ]
-                }
+            request_data = {
+                "model": model,
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+            }
+            
+            response = requests.post(
+                f"{base_url}/contents/generations/tasks",
+                headers=headers,
+                json=request_data
             )
             
+            if response.status_code != 200:
+                yield self.create_text_message(f"创建视频生成任务失败，状态码: {response.status_code}, 错误信息: {response.text}")
+                return
+                
             # 获取任务ID
-            task_id = response.json().get("id")
+            response_json = response.json()
+            task_id = response_json.get("id")
             if not task_id:
                 yield self.create_text_message("创建视频生成任务失败，未获取到任务ID")
                 return
@@ -74,7 +87,15 @@ class Text2VideoTool(Tool):
                 time.sleep(5)
                 
                 # 查询任务状态
-                task_response = client.get(f"/contents/generations/tasks/{task_id}")
+                task_response = requests.get(
+                    f"{base_url}/contents/generations/tasks/{task_id}",
+                    headers=headers
+                )
+                
+                if task_response.status_code != 200:
+                    yield self.create_text_message(f"查询视频生成任务失败，状态码: {task_response.status_code}, 错误信息: {task_response.text}")
+                    return
+                    
                 task_data = task_response.json()
                 
                 # 检查任务状态
@@ -88,6 +109,10 @@ class Text2VideoTool(Tool):
                     # 任务失败
                     error_message = task_data.get("error", {}).get("message", "未知错误")
                     yield self.create_text_message(f"视频生成任务失败: {error_message}")
+                    return
+                elif status == "canceled":
+                    # 任务被取消
+                    yield self.create_text_message("视频生成任务已被取消")
                     return
                 
                 # 继续等待

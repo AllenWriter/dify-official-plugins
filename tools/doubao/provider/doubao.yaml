@@ -18,14 +18,16 @@ extra:
 identity:
   author: Mak J AI Limited
   description:
-    en_US: Doubao (豆包) API integration for AI image generation by Volcengine/ByteDance.
-    zh_CN: 火山引擎/字节跳动提供的豆包 API，用于 AI 图像生成。
+    en_US: Doubao (豆包) API integration for AI image and video generation by Volcengine/ByteDance.
+    zh_CN: 火山引擎/字节跳动提供的豆包 API，用于 AI 图像和视频生成。
   icon: icon.svg
   label:
-    en_US: Doubao Image Generator
-    zh_CN: 豆包图像生成
+    en_US: Doubao Generator
+    zh_CN: 豆包生成器
   name: doubao
   tags:
   - image
+  - videos
 tools:
 - tools/text2image.yaml
+- tools/text2video.yaml

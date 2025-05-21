@@ -73,6 +73,9 @@ parameters:
   required: false
   type: select
   default: "5"
+  dependsOn:
+    field: "model"
+    value: ["doubao-seedance-1-0-lite-t2v-250428", "doubao-seaweed-241128", "wan2-1-14b-t2v-250225"]
 - form: form
   human_description:
     en_US: Model version to use for video generation.
@@ -90,6 +93,52 @@ parameters:
       en_US: Doubao Seaweed
       zh_CN: 豆包 Seaweed
     value: "doubao-seaweed-241128"
+  - label:
+      en_US: Wan2 1.0 14B
+      zh_CN: Wan2 1.0 14B
+    value: "wan2-1-14b-t2v-250225"
   required: false
   type: select
   default: "doubao-seedance-1-0-lite-t2v-250428"
+- form: form
+  human_description:
+    en_US: The resolution of the generated video (only for Wan2 model).
+    zh_CN: 生成视频的分辨率（仅适用于 Wan2 模型）。
+  label:
+    en_US: Resolution
+    zh_CN: 分辨率
+  name: resolution
+  options:
+  - label:
+      en_US: 720p (HD)
+      zh_CN: 720p (HD)
+    value: "720p"
+  - label:
+      en_US: 480p (SD)
+      zh_CN: 480p (SD)
+    value: "480p"
+  required: false
+  type: select
+  default: "720p"
+  dependsOn:
+    field: "model"
+    value: ["wan2-1-14b-t2v-250225"]
+- form: form
+  human_description:
+    en_US: The frames per second of the generated video (only for Wan2 model).
+    zh_CN: 生成视频的帧率（仅适用于 Wan2 模型）。
+  label:
+    en_US: FPS
+    zh_CN: 帧率
+  name: fps
+  options:
+  - label:
+      en_US: 16 FPS
+      zh_CN: 16 帧/秒
+    value: "16"
+  required: false
+  type: select
+  default: "16"
+  dependsOn:
+    field: "model"
+    value: ["wan2-1-14b-t2v-250225"]

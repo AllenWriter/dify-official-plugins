@@ -25,21 +25,31 @@ class Text2VideoTool(Tool):
             
         # 获取比例
         ratio = tool_parameters.get("ratio", "16:9")
-        # 添加比例参数到提示词
-        if ratio and not "--ratio" in prompt:
-            prompt = f"{prompt} --ratio {ratio}"
         
         # 获取时长
         duration = tool_parameters.get("duration", "5")
-        # 添加时长参数到提示词
-        if duration and not "--duration" in prompt and not "--dur" in prompt:
-            prompt = f"{prompt} --duration {duration}"
         
         # 获取模型
         model = tool_parameters.get("model", "doubao-seedance-1-0-lite-t2v-250428")
         
+        # 根据不同模型处理提示词
+        if "seedance" in model or "seaweed" in model:
+            # 对于豆包模型，添加特殊参数
+            # 添加比例参数到提示词
+            if ratio and not "--ratio" in prompt:
+                prompt = f"{prompt} --ratio {ratio}"
+            
+            # 添加时长参数到提示词
+            if duration and not "--duration" in prompt and not "--dur" in prompt:
+                prompt = f"{prompt} --duration {duration}"
+        elif "wan2" in model:
+            # 对于 Wan2 模型，可能需要不同的处理方式
+            # 这里只是示例，可能需要根据实际情况调整
+            if "--ratio" not in prompt and "--duration" not in prompt:
+                yield self.create_text_message("为 Wan2 模型生成视频，使用默认参数...")
+        
         try:
-            yield self.create_text_message("正在使用豆包 API 生成视频...")
+            yield self.create_text_message(f"正在使用{model}模型生成视频...")
             
             # 设置请求头
             headers = {
@@ -57,6 +67,37 @@ class Text2VideoTool(Tool):
                     }
                 ]
             }
+            
+            # 对于不同模型可能需要添加不同的参数
+            if "wan2" in model:
+                # Wan2 模型需要显式参数而不是在提示词中添加
+                parameters = {
+                    "duration_seconds": int(duration)
+                }
+                
+                # 使用用户选择的分辨率，如果提供了
+                resolution = tool_parameters.get("resolution")
+                if resolution:
+                    parameters["resolution"] = resolution
+                else:
+                    # 如果没有提供分辨率，根据比例选择默认值
+                    if ratio == "16:9" or ratio == "9:16":
+                        parameters["resolution"] = "720p"
+                    elif ratio == "4:3" or ratio == "1:1":
+                        parameters["resolution"] = "480p"
+                    else:
+                        parameters["resolution"] = "720p"  # 默认使用 720p
+                
+                # 使用用户选择的帧率，如果提供了
+                fps = tool_parameters.get("fps")
+                if fps:
+                    parameters["fps"] = int(fps)
+                else:
+                    # 如果没有提供帧率，使用默认值 16fps
+                    parameters["fps"] = 16
+                
+                # 添加参数到请求数据
+                request_data["parameters"] = parameters
             
             response = requests.post(
                 f"{base_url}/contents/generations/tasks",

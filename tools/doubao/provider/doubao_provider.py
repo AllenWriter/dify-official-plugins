@@ -2,6 +2,7 @@ from typing import Any
 from dify_plugin.errors.tool import ToolProviderCredentialValidationError
 from tools.text2image import Text2ImageTool
 from tools.text2video import Text2VideoTool
+from tools.image2video import Image2VideoTool
 from dify_plugin import ToolProvider
 
 
@@ -22,7 +23,8 @@ class DoubaoProvider(ToolProvider):
                 
             # Validation is successful if no exception is raised
             # Note: We only validate with Text2ImageTool to avoid unnecessary video generation
-            # Text2VideoTool uses the same API key and endpoint, so it should work if Text2ImageTool works
+            # All tools use the same API key and endpoint, so they should work if Text2ImageTool works
+            # This includes Text2VideoTool and Image2VideoTool
         except Exception as e:
             # If any error occurs during validation, raise it as credential validation error
             raise ToolProviderCredentialValidationError(f"Credential validation failed: {str(e)}")

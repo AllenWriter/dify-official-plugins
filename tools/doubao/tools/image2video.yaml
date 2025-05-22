@@ -27,24 +27,28 @@ parameters:
   type: string
 - form: llm
   human_description:
-    en_US: The URL of the image to be used for video generation. The image should be publicly accessible.
-    zh_CN: 用于生成视频的图片URL。图片应当可以公开访问。
+    en_US: The image file to be used for video generation.
+    zh_CN: 用于生成视频的图片文件。
   label:
-    en_US: Image URL
-    zh_CN: 图片URL
-  llm_description: URL of the image that will be transformed into a video.
-  name: image_url
+    en_US: Image
+    zh_CN: 图片文件
+  llm_description: Image file that will be transformed into a video.
+  name: image
   required: true
-  type: string
+  type: file
 - form: form
   human_description:
-    en_US: The aspect ratio of the generated video.
-    zh_CN: 生成视频的宽高比。
+    en_US: The aspect ratio of the generated video. Note that Doubao API currently only supports adaptive ratio.
+    zh_CN: 生成视频的宽高比。请注意，豆包API当前仅支持自适应比例。
   label:
-    en_US: Aspect Ratio
-    zh_CN: 宽高比
+    en_US: Aspect Ratio (Reference Only)
+    zh_CN: 宽高比（仅供参考）
   name: ratio
   options:
+  - label:
+      en_US: Adaptive (Auto)
+      zh_CN: 自适应（自动）
+    value: "adaptive"
   - label:
       en_US: 16:9 (Landscape)
       zh_CN: 16:9 (横向)
@@ -63,7 +67,7 @@ parameters:
     value: "1:1"
   required: false
   type: select
-  default: "16:9"
+  default: "adaptive"
 - form: form
   human_description:
     en_US: The duration of the generated video in seconds.

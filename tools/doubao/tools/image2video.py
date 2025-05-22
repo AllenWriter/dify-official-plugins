@@ -1,11 +1,27 @@
 import time
+import base64
+import traceback
 from collections.abc import Generator
+from typing import Any, Union
 import requests
 from dify_plugin.entities.tool import ToolInvokeMessage
 from dify_plugin import Tool
 
 
 class Image2VideoTool(Tool):
+    def _encode_image(self, file_data):
+        """将图片文件编码为base64"""
+        try:
+            # 记录图片大小
+            image_size = len(file_data) / 1024  # KB
+            encoded = base64.b64encode(file_data).decode("utf-8")
+            encoded_size = len(encoded) / 1024  # KB
+            debug_info = f"图片编码完成: 原始大小={image_size:.2f}KB, 编码后大小={encoded_size:.2f}KB"
+            return encoded, debug_info
+        except Exception as e:
+            stack_trace = traceback.format_exc()
+            raise Exception(f"图片编码失败: {str(e)}\n堆栈跟踪: {stack_trace}")
+
     def _invoke(
         self, tool_parameters: dict
     ) -> Generator[ToolInvokeMessage, None, None]:
@@ -15,7 +31,7 @@ class Image2VideoTool(Tool):
         Parameters:
             tool_parameters (dict): Dictionary containing:
                 - prompt (str): Text description for video generation
-                - image_url (str): URL of the image to be used for video generation
+                - image (file): Image file to be used for video generation
                 - duration (str): Video duration in seconds
                 - ratio (str): Aspect ratio (e.g., "16:9")
         
@@ -32,17 +48,94 @@ class Image2VideoTool(Tool):
             yield self.create_text_message("请输入视频描述提示词")
             return
             
-        # 获取图片URL
-        image_url = tool_parameters.get("image_url", "")
-        if not image_url:
-            yield self.create_text_message("请提供图片URL")
+        # 获取图片文件
+        image_file = tool_parameters.get("image")
+        if not image_file:
+            yield self.create_text_message("请上传图片文件")
+            return
+        
+        # 处理图片文件
+        try:
+            # 处理不同类型的图片输入
+            file_content = None
+            
+            # 检查文件类型并获取文件内容
+            if hasattr(image_file, 'url') and image_file.url:
+                # 如果文件是通过URL提供的
+                file_url = image_file.url
+                yield self.create_text_message(f"正在从URL获取图片: {file_url[:30]}...")
+                try:
+                    response = requests.get(file_url, timeout=60)
+                    response.raise_for_status()
+                    file_content = response.content
+                    yield self.create_text_message(f"成功下载图片: 大小={len(file_content)/1024:.2f}KB")
+                except Exception as e:
+                    yield self.create_text_message(f"从URL下载图片失败: {str(e)}")
+                    return
+            
+            # 如果URL下载失败或没有URL，尝试其他方法
+            if file_content is None and hasattr(image_file, 'blob'):
+                try:
+                    file_content = image_file.blob
+                    yield self.create_text_message(f"从blob属性获取文件数据: 大小={len(image_file.blob)/1024:.2f}KB")
+                except Exception as e:
+                    yield self.create_text_message(f"获取blob属性失败: {str(e)}")
+            
+            # 尝试从read方法获取
+            if file_content is None and hasattr(image_file, 'read'):
+                try:
+                    file_content = image_file.read()
+                    yield self.create_text_message("从可读对象获取文件数据")
+                    # 如果是文件对象，可能需要重置文件指针
+                    if hasattr(image_file, 'seek'):
+                        image_file.seek(0)
+                except Exception as e:
+                    yield self.create_text_message(f"从read方法获取文件数据失败: {str(e)}")
+            
+            # 尝试作为文件路径处理
+            if file_content is None and isinstance(image_file, str):
+                try:
+                    with open(image_file, 'rb') as f:
+                        file_content = f.read()
+                    yield self.create_text_message(f"从文件路径获取文件数据: {image_file}, 大小={len(file_content)/1024:.2f}KB")
+                except (TypeError, IOError) as e:
+                    yield self.create_text_message(f"从文件路径获取文件数据失败: {str(e)}")
+            
+            # 尝试本地文件缓存方式
+            if file_content is None and hasattr(image_file, 'path'):
+                try:
+                    with open(image_file.path, 'rb') as f:
+                        file_content = f.read()
+                    yield self.create_text_message(f"从本地缓存路径获取文件数据: {image_file.path}, 大小={len(file_content)/1024:.2f}KB")
+                except (TypeError, IOError) as e:
+                    yield self.create_text_message(f"从本地缓存路径获取文件数据失败: {str(e)}")
+            
+            # 如果所有方法都失败
+            if file_content is None:
+                yield self.create_text_message("无法获取图片数据。请尝试重新上传图片或使用较小的图片文件")
+                return
+            
+            # 编码图片数据为base64
+            try:
+                encoded_image, encoding_debug = self._encode_image(file_content)
+                yield self.create_text_message(encoding_debug)
+                
+                # 构建图片URL (豆包API需要可访问的URL或base64数据)
+                image_data_url = f"data:image/jpeg;base64,{encoded_image}"
+            except Exception as e:
+                yield self.create_text_message(f"图片编码失败: {str(e)}")
+                return
+                
+        except Exception as e:
+            stack_trace = traceback.format_exc()
+            yield self.create_text_message(f"处理图片文件失败: {str(e)}\n堆栈跟踪:\n{stack_trace}")
             return
         
         # 获取比例
         ratio = tool_parameters.get("ratio", "16:9")
         # 添加比例参数到提示词
         if ratio and not "--ratio" in prompt:
-            prompt = f"{prompt} --ratio {ratio}"
+            prompt = f"{prompt} --ratio adaptive"  # 始终使用adaptive而不是用户选择的ratio值
         
         # 获取时长
         duration = tool_parameters.get("duration", "5")
@@ -72,7 +165,7 @@ class Image2VideoTool(Tool):
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": image_url
+                        "url": image_data_url
                     }
                 }
             ]
@@ -106,7 +199,6 @@ class Image2VideoTool(Tool):
             # 显示任务信息
             yield self.create_text_message(f"视频生成任务已创建，任务ID: {task_id}")
             yield self.create_text_message(f"提示词: {prompt}")
-            yield self.create_text_message(f"输入图片: {image_url}")
             yield self.create_text_message("正在等待视频生成完成...")
             
             # 轮询查询任务状态，直到完成或失败
@@ -154,14 +246,9 @@ class Image2VideoTool(Tool):
             # 检查是否获取到视频URL
             if video_url:
                 yield self.create_text_message("视频生成成功！")
-                yield self.create_text_message(f"视频链接: {video_url}")
-                
-                # 创建带有视频链接的消息
-                video_data = {
-                    "type": "video",
-                    "url": video_url
-                }
-                yield self.create_json_message(video_data)
+                # 直接显示视频
+                yield self.create_image_message(video_url)
+                yield self.create_text_message("上方视频链接有效期为24小时。如需保存，请在此期间内下载视频文件。")
             else:
                 yield self.create_text_message("视频生成超时或失败，请稍后再试")
         
